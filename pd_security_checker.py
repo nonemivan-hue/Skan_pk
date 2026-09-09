@@ -156,7 +156,7 @@ class SecurityCheckWorker(QThread):
                 result = subprocess.run(
                     ['powershell', '-Command', 
                      'Get-WindowsUpdateLog; Get-HotFix | Select-Object -Last 5 HotFixID,InstalledOn'],
-                    capture_output=True, text=True, timeout=30
+                    capture_output=True, text=True, timeout=30, encoding='utf-8', errors='replace'
                 )
                 if result.returncode == 0:
                     details.append("Последние обновления найдены")
@@ -174,7 +174,7 @@ class SecurityCheckWorker(QThread):
             try:
                 result = subprocess.run(
                     ['apt', 'list', '--upgradable'],
-                    capture_output=True, text=True, timeout=30
+                    capture_output=True, text=True, timeout=30, encoding='utf-8', errors='replace'
                 )
                 upgradable = [line for line in result.stdout.split('\n') if line and 'Listing' not in line]
                 if len(upgradable) > 0:
@@ -230,7 +230,7 @@ class SecurityCheckWorker(QThread):
                 """
                 result = subprocess.run(
                     ['powershell', '-Command', ps_command],
-                    capture_output=True, text=True, timeout=30
+                    capture_output=True, text=True, timeout=30, encoding='utf-8', errors='replace'
                 )
                 
                 if result.returncode == 0 and result.stdout.strip():
@@ -289,7 +289,7 @@ class SecurityCheckWorker(QThread):
                                     svc_result = subprocess.run(
                                         ['powershell', '-Command', 
                                          f'Get-Service -Name "{service}" -ErrorAction SilentlyContinue | Select-Object Status'],
-                                        capture_output=True, text=True, timeout=10
+                                        capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                                     )
                                     if 'Running' in svc_result.stdout:
                                         antivirus_found = av_type
@@ -312,7 +312,7 @@ class SecurityCheckWorker(QThread):
                                 for reg_path in registry_paths:
                                     reg_result = subprocess.run(
                                         ['reg', 'query', reg_path],
-                                        capture_output=True, text=True, timeout=10
+                                        capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                                     )
                                     if reg_result.returncode == 0:
                                         if 'Kaspersky' in reg_path:
@@ -343,7 +343,7 @@ class SecurityCheckWorker(QThread):
                     result = subprocess.run(
                         ['powershell', '-Command', 
                          'Get-MpComputerStatus | Select-Object AntivirusEnabled,RealTimeProtectionEnabled'],
-                        capture_output=True, text=True, timeout=30
+                        capture_output=True, text=True, timeout=30, encoding='utf-8', errors='replace'
                     )
                     if 'True' in result.stdout:
                         details.append("Защитник Windows активен (базовая защита)")
@@ -369,7 +369,7 @@ class SecurityCheckWorker(QThread):
                     for cmd in commands:
                         result = subprocess.run(
                             ['which', cmd],
-                            capture_output=True, text=True, timeout=10
+                            capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                         )
                         if result.returncode == 0:
                             antivirus_found = av_type
@@ -379,7 +379,7 @@ class SecurityCheckWorker(QThread):
                             # Проверка статуса службы
                             svc_result = subprocess.run(
                                 ['systemctl', 'is-active', cmd],
-                                capture_output=True, text=True, timeout=10
+                                capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                             )
                             if svc_result.stdout.strip() == 'active':
                                 details.append("Статус: Активен")
@@ -429,7 +429,7 @@ class SecurityCheckWorker(QThread):
                 result = subprocess.run(
                     ['powershell', '-Command', 
                      'Get-NetFirewallProfile | Select-Object Name,Enabled'],
-                    capture_output=True, text=True, timeout=30
+                    capture_output=True, text=True, timeout=30, encoding='utf-8', errors='replace'
                 )
                 enabled_count = result.stdout.count('True')
                 if enabled_count > 0:
@@ -443,7 +443,7 @@ class SecurityCheckWorker(QThread):
                 recommendations.append("Включить брандмауэр в настройках системы")
         else:
             try:
-                result = subprocess.run(['ufw', 'status'], capture_output=True, text=True, timeout=10)
+                result = subprocess.run(['ufw', 'status'], capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace')
                 if 'active' in result.stdout.lower():
                     details.append("UFW брандмауэр активен")
                     passed = True
@@ -472,7 +472,7 @@ class SecurityCheckWorker(QThread):
             try:
                 result = subprocess.run(
                     ['net', 'accounts'],
-                    capture_output=True, text=True, timeout=10
+                    capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                 )
                 output = result.stdout
                 
@@ -525,14 +525,14 @@ class SecurityCheckWorker(QThread):
                 result = subprocess.run(
                     ['powershell', '-Command', 
                      'Get-LocalUser | Select-Object Name,Enabled,LastLogon'],
-                    capture_output=True, text=True, timeout=10
+                    capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                 )
                 users = [line.strip() for line in result.stdout.split('\n') if line.strip()]
                 details.append(f"Найдено учетных записей: {len(users)}")
                 
                 guest_check = subprocess.run(
                     ['powershell', '-Command', 'Get-LocalUser -Name Guest | Select-Object Enabled'],
-                    capture_output=True, text=True, timeout=10
+                    capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                 )
                 if 'True' in guest_check.stdout:
                     details.append("Учетная запись Guest активна")
@@ -545,7 +545,7 @@ class SecurityCheckWorker(QThread):
                 details.append(f"Ошибка: {str(e)}")
         else:
             try:
-                result = subprocess.run(['cat', '/etc/passwd'], capture_output=True, text=True, timeout=10)
+                result = subprocess.run(['cat', '/etc/passwd'], capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace')
                 users = [line for line in result.stdout.split('\n') if line and not line.startswith('#')]
                 details.append(f"Найдено учетных записей: {len(users)}")
             except:
@@ -570,7 +570,7 @@ class SecurityCheckWorker(QThread):
                 result = subprocess.run(
                     ['powershell', '-Command', 
                      'Get-WinEvent -ListLog Security | Select-Object RecordCount,IsEnabled'],
-                    capture_output=True, text=True, timeout=10
+                    capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                 )
                 if 'True' in result.stdout:
                     details.append("Журнал безопасности включен")
@@ -610,7 +610,7 @@ class SecurityCheckWorker(QThread):
             try:
                 result = subprocess.run(
                     ['manage-bde', '-status'],
-                    capture_output=True, text=True, timeout=10
+                    capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                 )
                 if 'Protection On' in result.stdout or 'Percentage Encrypted: 100' in result.stdout:
                     details.append("BitLocker шифрование активно")
@@ -623,7 +623,7 @@ class SecurityCheckWorker(QThread):
                 recommendations.append("Проверить шифрование диска вручную")
         else:
             try:
-                result = subprocess.run(['cryptsetup', 'status'], capture_output=True, text=True, timeout=10)
+                result = subprocess.run(['cryptsetup', 'status'], capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace')
                 if 'active' in result.stdout.lower():
                     details.append("LUKS шифрование активно")
                     passed = True
@@ -652,7 +652,7 @@ class SecurityCheckWorker(QThread):
             try:
                 result = subprocess.run(
                     ['net', 'share'],
-                    capture_output=True, text=True, timeout=10
+                    capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace'
                 )
                 shares = [line for line in result.stdout.split('\n') 
                          if line.strip() and 'IPC$' not in line and 'print$' not in line]
@@ -667,7 +667,7 @@ class SecurityCheckWorker(QThread):
                 details.append(f"Ошибка: {str(e)}")
         else:
             try:
-                result = subprocess.run(['exportfs', '-v'], capture_output=True, text=True, timeout=10)
+                result = subprocess.run(['exportfs', '-v'], capture_output=True, text=True, timeout=10, encoding='utf-8', errors='replace')
                 if result.stdout.strip():
                     details.append("Найдены NFS экспорты")
                     recommendations.append("Проверить настройки доступа к NFS ресурсам")
