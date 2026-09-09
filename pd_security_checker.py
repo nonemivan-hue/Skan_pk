@@ -683,6 +683,939 @@ class SecurityCheckWorker(QThread):
             'recommendations': recommendations if recommendations else ['Минимизировать количество общих ресурсов']
         }
 
+    def _get_remediation_instructions(self, check_id, system):
+        """
+        Генерация подробных инструкций по устранению нарушений
+        
+        Args:
+            check_id: идентификатор проверки
+            system: операционная система ('Windows' или 'Linux')
+        
+        Returns:
+            dict с инструкциями для Windows и Linux
+        """
+        instructions = {
+            'os_updates': self._get_os_updates_instructions(system),
+            'antivirus': self._get_antivirus_instructions(system),
+            'firewall': self._get_firewall_instructions(system),
+            'password_policy': self._get_password_policy_instructions(system),
+            'user_accounts': self._get_user_accounts_instructions(system),
+            'audit_logging': self._get_audit_logging_instructions(system),
+            'encryption': self._get_encryption_instructions(system),
+            'network_shares': self._get_network_shares_instructions(system)
+        }
+        return instructions.get(check_id, {})
+
+    def _get_os_updates_instructions(self, system):
+        """Инструкции по обновлению ОС"""
+        if system == 'Windows':
+            return {
+                'title': 'Обновление операционной системы Windows',
+                'steps': [
+                    '1. Откройте "Параметры" (Win + I) → "Обновление и безопасность"',
+                    '2. Нажмите "Проверить наличие обновлений"',
+                    '3. Установите все доступные обновления безопасности',
+                    '4. Перезагрузите компьютер после установки обновлений',
+                    '',
+                    'Альтернативно через PowerShell (от имени администратора):',
+                    '  Install-Module -Name PSWindowsUpdate -Force',
+                    '  Import-Module PSWindowsUpdate',
+                    '  Get-WindowsUpdate -Install -AcceptAll -IgnoreReboot',
+                    '',
+                    'Через командную строку:',
+                    '  usoclient StartScan',
+                    '  usoclient StartInstall',
+                    '',
+                    'Проверка установленных обновлений:',
+                    '  systeminfo | findstr /C:"Hotfix(s)"',
+                    '  wmic qfe list brief'
+                ],
+                'verification': 'Убедитесь, что все критические обновления установлены и система перезагружена',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 15'
+            }
+        else:  # Linux
+            return {
+                'title': 'Обновление операционной системы Linux',
+                'steps': [
+                    '1. Обновите список пакетов:',
+                    '   sudo apt update  # Для Debian/Ubuntu',
+                    '   sudo yum update  # Для CentOS/RHEL',
+                    '   sudo dnf update  # Для Fedora',
+                    '',
+                    '2. Установите обновления безопасности:',
+                    '   sudo apt upgrade --only-upgrade security',
+                    '   sudo yum update --security',
+                    '',
+                    '3. Для автоматического обновления установите:',
+                    '   sudo apt install unattended-upgrades',
+                    '   sudo dpkg-reconfigure unattended-upgrades',
+                    '',
+                    '4. Настройте автоматическую установку обновлений:',
+                    '   Создайте файл /etc/apt/apt.conf.d/50unattended-upgrades',
+                    '   Добавьте: Unattended-Upgrade::Automatic-Reboot "true";',
+                    '',
+                    '5. Перезагрузите систему при необходимости:',
+                    '   sudo systemctl reboot'
+                ],
+                'verification': 'Проверьте доступность обновлений: apt list --upgradable',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 15'
+            }
+
+    def _get_antivirus_instructions(self, system):
+        """Инструкции по настройке антивирусной защиты"""
+        if system == 'Windows':
+            return {
+                'title': 'Настройка антивирусной защиты Windows',
+                'steps': [
+                    'ВАРИАНТ 1: Использование Kaspersky Endpoint Security',
+                    '---------------------------------------------------',
+                    '1. Установка Kaspersky Endpoint Security:',
+                    '   - Скачайте дистрибутив с официального сайта kaspersky.ru',
+                    '   - Запустите установщик от имени администратора',
+                    '   - Введите лицензионный ключ',
+                    '',
+                    '2. Проверка состояния службы:',
+                    '   sc query kavsvc',
+                    '   net start kavsvc  (если остановлена)',
+                    '',
+                    '3. Обновление антивирусных баз:',
+                    '   Откройте консоль Kaspersky → Обновление → Обновить',
+                    '',
+                    '4. Настройка проверки в реальном времени:',
+                    '   Консоль Kaspersky → Защита → Файловый антивирус → Включить',
+                    '',
+                    '',
+                    'ВАРИАНТ 2: Использование Dr.Web Security Space',
+                    '-----------------------------------------------',
+                    '1. Установка Dr.Web:',
+                    '   - Скачайте с официального сайта drweb.ru',
+                    '   - Запустите установщик',
+                    '   - Активируйте продукт',
+                    '',
+                    '2. Проверка службы:',
+                    '   sc query drwebd',
+                    '   net start drwebd  (если остановлена)',
+                    '',
+                    '3. Обновление баз:',
+                    '   Откройте Dr.Web → Обновление → Обновить базы',
+                    '',
+                    '',
+                    'ВАРИАНТ 3: Использование Защитника Windows',
+                    '-------------------------------------------',
+                    '1. Проверка состояния:',
+                    '   powershell Get-MpComputerStatus',
+                    '',
+                    '2. Включение защиты в реальном времени:',
+                    '   powershell Set-MpPreference -DisableRealtimeMonitoring $false',
+                    '',
+                    '3. Обновление сигнатур:',
+                    '   powershell Update-MpSignature',
+                    '',
+                    '4. Включение облачной защиты:',
+                    '   powershell Set-MpPreference -MAPSReporting 2'
+                ],
+                'verification': 'Запустите полную проверку системы и убедитесь, что базы обновлены',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 16'
+            }
+        else:  # Linux
+            return {
+                'title': 'Настройка антивирусной защиты Linux',
+                'steps': [
+                    'ВАРИАНТ 1: Kaspersky Endpoint Security для Linux',
+                    '------------------------------------------------',
+                    '1. Установка:',
+                    '   wget https://kaspersky-contenthub.com/.../kesl_installer.run',
+                    '   chmod +x kesl_installer.run',
+                    '   sudo ./kesl_installer.run --install-all',
+                    '',
+                    '2. Активация:',
+                    '   sudo /opt/kaspersky/kesl/bin/kesl-control --set-license <ключ>',
+                    '',
+                    '3. Запуск служб:',
+                    '   sudo systemctl start kesl',
+                    '   sudo systemctl enable kesl',
+                    '',
+                    '4. Обновление баз:',
+                    '   sudo /opt/kaspersky/kesl/bin/kesl-control --update',
+                    '',
+                    '5. Настройка сканирования:',
+                    '   sudo /opt/kaspersky/kesl/bin/kesl-control --scan-file /home',
+                    '',
+                    '',
+                    'ВАРИАНТ 2: Dr.Web для Linux',
+                    '---------------------------',
+                    '1. Установка:',
+                    '   sudo apt install drweb-ces',
+                    '   или скачайте с сайта drweb.ru',
+                    '',
+                    '2. Запуск службы:',
+                    '   sudo systemctl start drweb.comond',
+                    '   sudo systemctl enable drweb.comond',
+                    '',
+                    '3. Обновление:',
+                    '   sudo /opt/drweb.com/bin/drweb-ctl update',
+                    '',
+                    '',
+                    'ВАРИАНТ 3: ClamAV (открытое решение)',
+                    '-------------------------------------',
+                    '1. Установка:',
+                    '   sudo apt install clamav clamav-daemon',
+                    '',
+                    '2. Обновление баз:',
+                    '   sudo freshclam',
+                    '',
+                    '3. Сканирование:',
+                    '   clamscan -r /home',
+                    '   clamscan -r --remove /home  # с удалением угроз'
+                ],
+                'verification': 'Выполните полное сканирование системы и проверьте дату обновления баз',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 16'
+            }
+
+    def _get_firewall_instructions(self, system):
+        """Инструкции по настройке межсетевого экрана"""
+        if system == 'Windows':
+            return {
+                'title': 'Настройка межсетевого экрана Windows',
+                'steps': [
+                    'СПОСОБ 1: Через графический интерфейс',
+                    '--------------------------------------',
+                    '1. Откройте "Панель управления" → "Брандмауэр Защитника Windows"',
+                    '2. Нажмите "Включение и отключение брандмауэра"',
+                    '3. Включите брандмауэр для всех профилей:',
+                    '   - Частная сеть: ВКЛЮЧЕН',
+                    '   - Публичная сеть: ВКЛЮЧЕН',
+                    '   - Доменная сеть: ВКЛЮЧЕН',
+                    '4. Нажмите "OK" для сохранения',
+                    '',
+                    'СПОСОБ 2: Через PowerShell (от имени администратора)',
+                    '---------------------------------------------------',
+                    '# Включение брандмауэра для всех профилей:',
+                    'Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True',
+                    '',
+                    '# Проверка состояния:',
+                    'Get-NetFirewallProfile | Select Name, Enabled',
+                    '',
+                    '# Блокировка всех входящих подключений по умолчанию:',
+                    'Set-NetFirewallProfile -DefaultInboundAction Block',
+                    '',
+                    '# Разрешение необходимых портов:',
+                    'New-NetFirewallRule -DisplayName "RDP" -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow',
+                    'New-NetFirewallRule -DisplayName "HTTP" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow',
+                    '',
+                    'СПОСОБ 3: Через netsh',
+                    '--------------------',
+                    'netsh advfirewall set allprofiles state on',
+                    'netsh advfirewall show allprofiles'
+                ],
+                'verification': 'Убедитесь, что брандмауэр включен во всех профилях сети',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 17'
+            }
+        else:  # Linux
+            return {
+                'title': 'Настройка межсетевого экрана Linux',
+                'steps': [
+                    'ВАРИАНТ 1: UFW (Uncomplicated Firewall) - для Ubuntu/Debian',
+                    '------------------------------------------------------------',
+                    '1. Установка:',
+                    '   sudo apt install ufw',
+                    '',
+                    '2. Настройка правил по умолчанию:',
+                    '   sudo ufw default deny incoming',
+                    '   sudo ufw default allow outgoing',
+                    '',
+                    '3. Разрешение необходимых портов:',
+                    '   sudo ufw allow ssh          # SSH (порт 22)',
+                    '   sudo ufw allow http         # HTTP (порт 80)',
+                    '   sudo ufw allow https        # HTTPS (порт 443)',
+                    '   sudo ufw allow from 192.168.1.0/24 to any port 3306  # MySQL из локальной сети',
+                    '',
+                    '4. Включение брандмауэра:',
+                    '   sudo ufw enable',
+                    '',
+                    '5. Проверка статуса:',
+                    '   sudo ufw status verbose',
+                    '',
+                    '',
+                    'ВАРИАНТ 2: firewalld - для CentOS/RHEL/Fedora',
+                    '----------------------------------------------',
+                    '1. Запуск службы:',
+                    '   sudo systemctl start firewalld',
+                    '   sudo systemctl enable firewalld',
+                    '',
+                    '2. Добавление сервисов:',
+                    '   sudo firewall-cmd --permanent --add-service=ssh',
+                    '   sudo firewall-cmd --permanent --add-service=http',
+                    '   sudo firewall-cmd --permanent --add-service=https',
+                    '',
+                    '3. Применение изменений:',
+                    '   sudo firewall-cmd --reload',
+                    '',
+                    '4. Проверка:',
+                    '   sudo firewall-cmd --list-all',
+                    '',
+                    '',
+                    'ВАРИАНТ 3: iptables (классический)',
+                    '-----------------------------------',
+                    '1. Очистка правил:',
+                    '   sudo iptables -F',
+                    '',
+                    '2. Политика по умолчанию:',
+                    '   sudo iptables -P INPUT DROP',
+                    '   sudo iptables -P FORWARD DROP',
+                    '   sudo iptables -P OUTPUT ACCEPT',
+                    '',
+                    '3. Разрешение локального трафика:',
+                    '   sudo iptables -A INPUT -i lo -j ACCEPT',
+                    '   sudo iptables -A OUTPUT -o lo -j ACCEPT',
+                    '',
+                    '4. Разрешение установленных соединений:',
+                    '   sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT',
+                    '',
+                    '5. Сохранение правил:',
+                    '   sudo iptables-save > /etc/iptables/rules.v4'
+                ],
+                'verification': 'Проверьте статус: ufw status или firewall-cmd --list-all',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 17'
+            }
+
+    def _get_password_policy_instructions(self, system):
+        """Инструкции по настройке политики паролей"""
+        if system == 'Windows':
+            return {
+                'title': 'Настройка политики паролей Windows',
+                'steps': [
+                    'СПОСОБ 1: Через secpol.msc (локальная политика)',
+                    '-----------------------------------------------',
+                    '1. Нажмите Win + R, введите: secpol.msc',
+                    '2. Перейдите: Конфигурация компьютера → Конфигурация Windows',
+                    '   → Параметры безопасности → Политики учетных записей',
+                    '   → Политика паролей',
+                    '3. Настройте следующие параметры:',
+                    '   - Минимальная длина пароля: 8 символов',
+                    '   - Требование сложности пароля: Включено',
+                    '   - Максимальный срок действия пароля: 90 дней',
+                    '   - Минимальный срок действия пароля: 1 день',
+                    '   - Принудительное ведение журнала паролей: 5',
+                    '',
+                    'СПОСОБ 2: Через gpedit.msc (редактор групповых политик)',
+                    '--------------------------------------------------------',
+                    '1. Win + R → gpedit.msc',
+                    '2. Конфигурация компьютера → Конфигурация Windows',
+                    '   → Параметры безопасности → Политики учетных записей',
+                    '',
+                    'СПОСОБ 3: Через командную строку (net accounts)',
+                    '------------------------------------------------',
+                    '# Просмотр текущих настроек:',
+                    'net accounts',
+                    '',
+                    '# Настройка минимальной длины (8 символов):',
+                    'net accounts /minpwlen:8',
+                    '',
+                    '# Настройка максимального срока действия (90 дней):',
+                    'net accounts /maxpwage:90',
+                    '',
+                    '# Требование сложности:',
+                    'secedit /configure /cfg %windir%\\inf\\defltbase.inf /db defltbase.sdb /verbose',
+                    '',
+                    'СПОСОБ 4: Через PowerShell',
+                    '---------------------------',
+                    '# Проверка текущей политики:',
+                    'Get-ADDefaultDomainPasswordPolicy  # Для домена',
+                    'net accounts  # Локально',
+                    '',
+                    '# Настройка через Active Directory:',
+                    'Set-ADDefaultDomainPasswordPolicy -Identity domain.com ',
+                    '  -MinPasswordLength 8 -MaxPasswordAge 90.00:00:00 ',
+                    '  -PasswordHistoryCount 5 -ComplexityEnabled $true'
+                ],
+                'verification': 'Выполните "net accounts" и проверьте соответствие параметров',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 19'
+            }
+        else:  # Linux
+            return {
+                'title': 'Настройка политики паролей Linux',
+                'steps': [
+                    '1. Редактирование файла /etc/login.defs',
+                    '-----------------------------------------',
+                    'sudo nano /etc/login.defs',
+                    '',
+                    'Измените следующие параметры:',
+                    'PASS_MAX_DAYS   90    # Максимальный срок действия пароля',
+                    'PASS_MIN_DAYS   1     # Минимальный срок действия',
+                    'PASS_WARN_AGE   7     # Предупреждение за 7 дней',
+                    'PASS_MIN_LEN    8     # Минимальная длина',
+                    '',
+                    '2. Настройка сложности паролей через PAM',
+                    '-----------------------------------------',
+                    '# Для Debian/Ubuntu отредактируйте:',
+                    'sudo nano /etc/pam.d/common-password',
+                    'Добавьте строку:',
+                    'password requisite pam_pwquality.so retry=3 minlen=8 dcredit=-1 ucredit=-1 ocredit=-1 lcredit=-1',
+                    '',
+                    '# Для CentOS/RHEL отредактируйте:',
+                    'sudo nano /etc/pam.d/system-auth',
+                    'Добавьте:',
+                    'password requisite pam_pwquality.so try_first_pass local_users_only retry=3 authtok_type=',
+                    '',
+                    '3. Принудительная смена паролей',
+                    '--------------------------------',
+                    '# Для существующих пользователей:',
+                    'sudo chage -M 90 username  # Максимум 90 дней',
+                    'sudo chage -m 1 username   # Минимум 1 день',
+                    'sudo chage -W 7 username   # Предупреждение за 7 дней',
+                    '',
+                    '# Проверка настроек пользователя:',
+                    'chage -l username',
+                    '',
+                    '4. Блокировка слабых паролей',
+                    '-----------------------------',
+                    '# Установка pwquality:',
+                    'sudo apt install libpam-pwquality  # Debian/Ubuntu',
+                    'sudo yum install libpwquality      # CentOS/RHEL',
+                    '',
+                    '# Создание словаря запрещенных паролей:',
+                    'echo "password123" >> /etc/security/opasswd'
+                ],
+                'verification': 'Выполните "chage -l username" и проверьте параметры',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 19'
+            }
+
+    def _get_user_accounts_instructions(self, system):
+        """Инструкции по управлению учетными записями"""
+        if system == 'Windows':
+            return {
+                'title': 'Управление учетными записями Windows',
+                'steps': [
+                    '1. Отключение встроенной учетной записи Администратора',
+                    '-------------------------------------------------------',
+                    '# Через командную строку (от имени администратора):',
+                    'net user administrator /active:no',
+                    '',
+                    '# Через PowerShell:',
+                    'Get-LocalUser -Name Administrator | Disable-LocalUser',
+                    '',
+                    '2. Отключение учетной записи Гостя',
+                    '-----------------------------------',
+                    'net user guest /active:no',
+                    'Get-LocalUser -Name Guest | Disable-LocalUser',
+                    '',
+                    '3. Проверка учетных записей с пустыми паролями',
+                    '-----------------------------------------------',
+                    '# Запрет пустых паролей:',
+                    'secpol.msc → Политики учетных записей →',
+                    'Параметры безопасности →',
+                    '"Учетные записи: разрешать использование пустых паролей" → Отключено',
+                    '',
+                    '4. Блокировка учетной записи после неудачных попыток входа',
+                    '-----------------------------------------------------------',
+                    '# Через secpol.msc:',
+                    'Политика учетных записей → Политика блокировки учетной записи',
+                    '- Порог блокировки: 5 неудачных попыток',
+                    '- Время сброса: 30 минут',
+                    '- Длительность блокировки: 30 минут',
+                    '',
+                    '# Через командную строку:',
+                    'net accounts /lockoutthreshold:5',
+                    'net accounts /lockoutwindow:30',
+                    'net accounts /lockoutduration:30',
+                    '',
+                    '5. Аудит управления учетными записями',
+                    '--------------------------------------',
+                    'auditpol /set /subcategory:"User Account Management" /success:enable /failure:enable',
+                    '',
+                    '6. Удаление неиспользуемых учетных записей',
+                    '-------------------------------------------',
+                    '# Показать последние входы:',
+                    'net user username',
+                    '',
+                    '# Удаление учетной записи:',
+                    'net user username /delete'
+                ],
+                'verification': 'Выполните "net user" и проверьте состояние учетных записей',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 18'
+            }
+        else:  # Linux
+            return {
+                'title': 'Управление учетными записями Linux',
+                'steps': [
+                    '1. Блокировка учетной записи root для входа по SSH',
+                    '---------------------------------------------------',
+                    '# Редактирование /etc/ssh/sshd_config:',
+                    'sudo nano /etc/ssh/sshd_config',
+                    'PermitRootLogin no',
+                    '',
+                    '# Перезапуск SSH:',
+                    'sudo systemctl restart sshd',
+                    '',
+                    '2. Отключение системных учетных записей',
+                    '----------------------------------------',
+                    '# Блокировка учетной записи:',
+                    'sudo usermod -L username  # Заблокировать',
+                    'sudo usermod -U username  # Разблокировать',
+                    '',
+                    '# Удаление учетной записи:',
+                    'sudo userdel -r username  # С удалением домашнего каталога',
+                    '',
+                    '3. Настройка блокировки после неудачных попыток (pam_faillock)',
+                    '----------------------------------------------------------------',
+                    '# Для CentOS/RHEL 8+:',
+                    'sudo nano /etc/security/faillock.conf',
+                    'deny = 5',
+                    'unlock_time = 1800',
+                    'fail_interval = 900',
+                    '',
+                    '# Для Debian/Ubuntu:',
+                    'sudo nano /etc/pam.d/common-auth',
+                    'Добавьте перед строкой pam_unix.so:',
+                    'auth required pam_faillock.so preauth silent deny=5 unlock_time=1800',
+                    'auth [default=die] pam_faillock.so authfail deny=5 unlock_time=1800',
+                    '',
+                    '4. Проверка пользователей без пароля',
+                    '-------------------------------------',
+                    '# Найти пользователей без пароля:',
+                    'sudo awk -F: \'($2 == "" || $2 == "!") {print $1}\' /etc/shadow',
+                    '',
+                    '# Заблокировать их:',
+                    'sudo passwd -l username',
+                    '',
+                    '5. Проверка пользователей с UID 0 (кроме root)',
+                    '-----------------------------------------------',
+                    'awk -F: \'($3 == 0) {print $1}\' /etc/passwd',
+                    '',
+                    '6. Настройка срока действия паролей',
+                    '------------------------------------',
+                    '# Для всех новых пользователей:',
+                    'sudo chage -M 90 -m 1 -W 7 /etc/default/useradd',
+                    '',
+                    '# Для существующих:',
+                    'for user in $(cut -f1 -d: /etc/passwd); do chage -M 90 $user; done',
+                    '',
+                    '7. Аудит действий с учетными записями',
+                    '--------------------------------------',
+                    '# Включение аудита:',
+                    'sudo auditctl -w /etc/passwd -p wa -k identity',
+                    'sudo auditctl -w /etc/shadow -p wa -k identity',
+                    'sudo auditctl -w /etc/group -p wa -k identity'
+                ],
+                'verification': 'Выполните "cat /etc/passwd" и "chage -l username"',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 18'
+            }
+
+    def _get_audit_logging_instructions(self, system):
+        """Инструкции по настройке журналирования"""
+        if system == 'Windows':
+            return {
+                'title': 'Настройка аудита и журналирования Windows',
+                'steps': [
+                    '1. Включение расширенного аудита через auditpol',
+                    '-----------------------------------------------',
+                    '# Включение аудита входа в систему:',
+                    'auditpol /set /subcategory:"Logon" /success:enable /failure:enable',
+                    '',
+                    '# Аудит управления учетными записями:',
+                    'auditpol /set /subcategory:"User Account Management" /success:enable /failure:enable',
+                    '',
+                    '# Аудит доступа к объектам:',
+                    'auditpol /set /subcategory:"File System" /success:enable /failure:enable',
+                    '',
+                    '# Аудит изменений политик:',
+                    'auditpol /set /subcategory:"Audit Policy Change" /success:enable /failure:enable',
+                    '',
+                    '# Просмотр текущих настроек:',
+                    'auditpol /get /category:*',
+                    '',
+                    '2. Настройка через secpol.msc',
+                    '------------------------------',
+                    '1. Win + R → secpol.msc',
+                    '2. Локальные политики → Политика аудита',
+                    '3. Включите следующие события:',
+                    '   - Аудит входа в систему: успех и отказ',
+                    '   - Аудит управления учетными записями: успех и отказ',
+                    '   - Аудит доступа к объектам: успех и отказ',
+                    '   - Аудит изменения политик: успех и отказ',
+                    '',
+                    '3. Управление журналом событий',
+                    '-------------------------------',
+                    '# Увеличение размера журнала безопасности:',
+                    'wevtutil sl Security /ms:134217728  # 128 МБ',
+                    '',
+                    '# Экспорт журнала:',
+                    'wevtutil epl Security C:\\Logs\\Security.evtx',
+                    '',
+                    '# Очистка журнала:',
+                    'wevtutil cl Security',
+                    '',
+                    '4. Просмотр событий безопасности',
+                    '---------------------------------',
+                    '# Через PowerShell:',
+                    'Get-WinEvent -LogName Security -MaxEvents 50',
+                    '',
+                    '# Фильтрация по ID события:',
+                    'Get-WinEvent -FilterHashtable @{LogName="Security";Id=4624} -MaxEvents 10',
+                    '',
+                    '# Ключевые ID событий:',
+                    '4624 - успешный вход',
+                    '4625 - неудачный вход',
+                    '4720 - создана учетная запись',
+                    '4726 - удалена учетная запись',
+                    '4732 - добавлен пользователь в группу'
+                ],
+                'verification': 'Проверьте журнал событий: eventvwr.msc → Журналы Windows → Безопасность',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 20'
+            }
+        else:  # Linux
+            return {
+                'title': 'Настройка аудита и журналирования Linux',
+                'steps': [
+                    '1. Установка и настройка auditd',
+                    '--------------------------------',
+                    '# Установка:',
+                    'sudo apt install auditd audispd-plugins  # Debian/Ubuntu',
+                    'sudo yum install audit audit-libs       # CentOS/RHEL',
+                    '',
+                    '# Запуск службы:',
+                    'sudo systemctl start auditd',
+                    'sudo systemctl enable auditd',
+                    '',
+                    '# Проверка статуса:',
+                    'sudo systemctl status auditd',
+                    'sudo auditctl -s',
+                    '',
+                    '2. Настройка правил аудита',
+                    '---------------------------',
+                    '# Аудит изменений файлов учетных записей:',
+                    'sudo auditctl -w /etc/passwd -p wa -k identity',
+                    'sudo auditctl -w /etc/shadow -p wa -k identity',
+                    'sudo auditctl -w /etc/group -p wa -k identity',
+                    'sudo auditctl -w /etc/sudoers -p wa -k sudoers',
+                    '',
+                    '# Аудит вызовов системных функций:',
+                    'sudo auditctl -a exit,always -F arch=b64 -S open -S openat -k file_access',
+                    '',
+                    '# Аудит использования привилегий:',
+                    'sudo auditctl -a exit,always -F arch=b64 -S setuid -S setgid -k priv_esc',
+                    '',
+                    '# Сохранение правил:',
+                    'sudo service auditd save  # или:',
+                    'sudo augenrules --load',
+                    '',
+                    '3. Просмотр логов аудита',
+                    '-------------------------',
+                    '# Поиск по ключу:',
+                    'sudo ausearch -k identity',
+                    '',
+                    '# Поиск по пользователю:',
+                    'sudo ausearch -ui username',
+                    '',
+                    '# Поиск по временному диапазону:',
+                    'sudo ausearch -ts today',
+                    '',
+                    '# Просмотр последних событий:',
+                    'sudo tail -f /var/log/audit/audit.log',
+                    '',
+                    '4. Настройка rsyslog для системных логов',
+                    '-----------------------------------------',
+                    '# Установка:',
+                    'sudo apt install rsyslog',
+                    '',
+                    '# Настройка вращения логов:',
+                    'sudo nano /etc/logrotate.d/rsyslog',
+                    '',
+                    '# Включение удаленной отправки логов:',
+                    'sudo nano /etc/rsyslog.conf',
+                    '*.* @logsrv.example.com:514',
+                    '',
+                    '5. Мониторинг важных файлов',
+                    '----------------------------',
+                    '# Установка AIDE для контроля целостности:',
+                    'sudo apt install aide',
+                    'sudo aideinit',
+                    'sudo cp /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz',
+                    '',
+                    '# Проверка целостности:',
+                    'sudo aide --check'
+                ],
+                'verification': 'Проверьте логи: sudo tail -f /var/log/audit/audit.log',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 20'
+            }
+
+    def _get_encryption_instructions(self, system):
+        """Инструкции по шифрованию данных"""
+        if system == 'Windows':
+            return {
+                'title': 'Шифрование данных на Windows',
+                'steps': [
+                    'ВАРИАНТ 1: BitLocker (для профессиональных версий)',
+                    '--------------------------------------------------',
+                    '1. Проверка поддержки BitLocker:',
+                    'manage-bde -status',
+                    '',
+                    '2. Включение BitLocker для системного диска:',
+                    'manage-bde -on C: -RecoveryPassword -RecoveryKey D:\\BitLockerKeys',
+                    '',
+                    '3. Включение BitLocker для несистемного диска:',
+                    'manage-bde -on D: -RecoveryPassword',
+                    '',
+                    '4. Настройка TPM:',
+                    'tpm.msc → Инициализировать TPM',
+                    '',
+                    '5. Через PowerShell:',
+                    'Enable-BitLocker -MountPoint "C:" -EncryptionMethod Aes256 ',
+                    '  -RecoveryPasswordProtector -TpmProtector',
+                    '',
+                    '6. Резервное копирование ключей восстановления:',
+                    'manage-bde -protectors -get C:',
+                    '',
+                    '',
+                    'ВАРИАНТ 2: VeraCrypt (для всех версий Windows)',
+                    '----------------------------------------------',
+                    '1. Установка:',
+                    '   - Скачайте с veracrypt.fr',
+                    '   - Установите VeraCrypt',
+                    '',
+                    '2. Создание зашифрованного тома:',
+                    '   - Запустите VeraCrypt → Create Volume',
+                    '   - Выберите "Create an encrypted file container"',
+                    '   - Укажите размер и расположение',
+                    '   - Выберите алгоритм шифрования (AES)',
+                    '   - Задайте надежный пароль',
+                    '',
+                    '3. Шифрование системного раздела:',
+                    '   - System → Encrypt System Partition',
+                    '   - Следуйте мастеру настройки',
+                    '',
+                    '4. Монтирование тома:',
+                    '   - Выберите том и букву диска',
+                    '   - Нажмите "Mount" и введите пароль',
+                    '',
+                    '',
+                    'ВАРИАНТ 3: EFS (шифрование отдельных файлов)',
+                    '---------------------------------------------',
+                    '1. Шифрование файла/папки:',
+                    '   - ПКМ на файле → Свойства → Дополнительно',
+                    '   - Включите "Шифровать содержимое"',
+                    '',
+                    '2. Через командную строку:',
+                    'cipher /e C:\\SensitiveData',
+                    '',
+                    '3. Экспорт сертификата EFS:',
+                    'certmgr.msc → Личные → Сертификаты',
+                    '→ ПКМ → Все задачи → Экспорт'
+                ],
+                'verification': 'Проверьте статус: manage-bde -status',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 22'
+            }
+        else:  # Linux
+            return {
+                'title': 'Шифрование данных на Linux',
+                'steps': [
+                    'ВАРИАНТ 1: LUKS (шифрование всего диска)',
+                    '-----------------------------------------',
+                    '1. Установка cryptsetup:',
+                    'sudo apt install cryptsetup-initramfs  # Debian/Ubuntu',
+                    'sudo yum install cryptsetup            # CentOS/RHEL',
+                    '',
+                    '2. Шифрование раздела:',
+                    'sudo cryptsetup luksFormat /dev/sdX',
+                    '# Подтвердите действие и задайте пароль',
+                    '',
+                    '3. Открытие зашифрованного раздела:',
+                    'sudo cryptsetup open /dev/sdX encrypted_disk',
+                    '',
+                    '4. Создание файловой системы:',
+                    'sudo mkfs.ext4 /dev/mapper/encrypted_disk',
+                    '',
+                    '5. Монтирование:',
+                    'sudo mount /dev/mapper/encrypted_disk /mnt/secure',
+                    '',
+                    '6. Автоматическое монтирование при загрузке:',
+                    'sudo nano /etc/crypttab',
+                    'encrypted_disk UUID=<uuid-of-device> none luks',
+                    '',
+                    'sudo nano /etc/fstab',
+                    '/dev/mapper/encrypted_disk /mnt/secure ext4 defaults 0 2',
+                    '',
+                    '7. Управление ключами:',
+                    '# Добавить ключ:',
+                    'sudo cryptsetup luksAddKey /dev/sdX',
+                    '# Удалить ключ:',
+                    'sudo cryptsetup luksRemoveKey /dev/sdX',
+                    '',
+                    '',
+                    'ВАРИАНТ 2: EncFS (шифрование каталога)',
+                    '---------------------------------------',
+                    '1. Установка:',
+                    'sudo apt install encfs',
+                    '',
+                    '2. Создание зашифрованной папки:',
+                    'encfs ~/.encrypted ~/decrypted',
+                    '',
+                    '3. Работа с файлами:',
+                    '# Все файлы в ~/decrypted автоматически шифруются',
+                    '# и хранятся в ~/.encrypted',
+                    '',
+                    '4. Размонтирование:',
+                    'fusermount -u ~/decrypted',
+                    '',
+                    '',
+                    'ВАРИАНТ 3: eCryptfs (шифрование домашнего каталога)',
+                    '---------------------------------------------------',
+                    '1. Установка:',
+                    'sudo apt install ecryptfs-utils',
+                    '',
+                    '2. Шифрование домашнего каталога:',
+                    'ecryptfs-migrate-home -u username',
+                    '',
+                    '3. Ручное монтирование:',
+                    'mount -t ecryptfs /path/to/encrypted /path/to/mount',
+                    ''
+                ],
+                'verification': 'Проверьте статус: sudo cryptsetup status encrypted_disk',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 22'
+            }
+
+    def _get_network_shares_instructions(self, system):
+        """Инструкции по защите сетевых ресурсов"""
+        if system == 'Windows':
+            return {
+                'title': 'Защита сетевых ресурсов Windows',
+                'steps': [
+                    '1. Проверка общих ресурсов',
+                    '---------------------------',
+                    '# Просмотр всех общих папок:',
+                    'net share',
+                    '',
+                    '# Через PowerShell:',
+                    'Get-SmbShare',
+                    '',
+                    '2. Удаление ненужных общих ресурсов',
+                    '------------------------------------',
+                    '# Удаление общей папки:',
+                    'net share ShareName /delete',
+                    '',
+                    '# Через PowerShell:',
+                    'Remove-SmbShare -Name "ShareName" -Force',
+                    '',
+                    '3. Настройка разрешений для общих папок',
+                    '----------------------------------------',
+                    '# Через проводник:',
+                    'ПКМ на папке → Свойства → Доступ → Расширенная настройка',
+                    '→ Разрешения → Удалить "Все", добавить конкретных пользователей',
+                    '',
+                    '# Через командную строку:',
+                    'icacls "C:\\SharedFolder" /grant Domain\\User:(OI)(CI)M',
+                    '',
+                    '4. Отключение скрытых административных ресурсов',
+                    '------------------------------------------------',
+                    '# Через реестр:',
+                    'reg add HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters ',
+                    '  /v AutoShareServer /t REG_DWORD /d 0 /f',
+                    'reg add HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters ',
+                    '  /v AutoShareWks /t REG_DWORD /d 0 /f',
+                    '',
+                    '# Перезагрузка или:',
+                    'net stop lanmanserver && net start lanmanserver',
+                    '',
+                    '5. Аудит доступа к общим ресурсам',
+                    '----------------------------------',
+                    '# Включение аудита:',
+                    'auditpol /set /subcategory:"Detailed File Share" /success:enable /failure:enable',
+                    '',
+                    '# Просмотр событий:',
+                    'Get-WinEvent -FilterHashtable @{LogName="Security";Id=5140} -MaxEvents 20',
+                    '',
+                    '6. Отключение SMBv1 (небезопасная версия)',
+                    '------------------------------------------',
+                    '# Через PowerShell:',
+                    'Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force',
+                    '',
+                    '# Через компоненты Windows:',
+                    'Панель управления → Программы → Включение компонентов',
+                    '→ Снять галочку "Поддержка общего доступа к файлам SMB 1.0"'
+                ],
+                'verification': 'Проверьте ресурсы: net share и убедитесь, что нет лишних',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 23'
+            }
+        else:  # Linux
+            return {
+                'title': 'Защита сетевых ресурсов Linux',
+                'steps': [
+                    '1. Проверка NFS экспортов',
+                    '--------------------------',
+                    '# Просмотр экспортируемых ресурсов:',
+                    'showmount -e localhost',
+                    'cat /etc/exports',
+                    '',
+                    '2. Настройка безопасных NFS экспортов',
+                    '--------------------------------------',
+                    '# Редактирование /etc/exports:',
+                    'sudo nano /etc/exports',
+                    '',
+                    '# Пример безопасной настройки:',
+                    '/shared/data 192.168.1.0/24(ro,sync,no_subtree_check,no_root_squash)',
+                    '/shared/backup 192.168.1.100(rw,sync,no_subtree_check)',
+                    '',
+                    '# Параметры безопасности:',
+                    '# ro - только чтение',
+                    '# sync - синхронная запись',
+                    '# no_root_squash - запрет root (используйте root_squash)',
+                    '',
+                    '# Применение изменений:',
+                    'sudo exportfs -ra',
+                    '',
+                    '3. Проверка Samba ресурсов',
+                    '---------------------------',
+                    '# Просмотр конфигурации:',
+                    'testparm -s',
+                    '',
+                    '# Редактирование /etc/samba/smb.conf:',
+                    'sudo nano /etc/samba/smb.conf',
+                    '',
+                    '# Пример безопасной настройки:',
+                    '[secure_share]',
+                    'path = /srv/samba/secure',
+                    'valid users = @admins',
+                    'read only = yes',
+                    'create mask = 0640',
+                    'directory mask = 0750',
+                    '',
+                    '# Перезапуск Samba:',
+                    'sudo systemctl restart smbd nmbd',
+                    '',
+                    '4. Настройка разрешений POSIX',
+                    '----------------------------',
+                    '# Установка правильных прав:',
+                    'chmod 750 /shared/folder',
+                    'chown root:admins /shared/folder',
+                    '',
+                    '# Установка sticky bit:',
+                    'chmod +t /shared/tmp',
+                    '',
+                    '5. Аудит сетевого доступа',
+                    '-------------------------',
+                    '# Мониторинг подключений:',
+                    'sudo auditctl -w /etc/exports -p wa -k nfs_exports',
+                    'sudo ausearch -k nfs_exports',
+                    '',
+                    '# Логи Samba:',
+                    'sudo tail -f /var/log/samba/log.smbd',
+                    '',
+                    '6. Отключение ненужных сервисов',
+                    '--------------------------------',
+                    '# Проверка слушающих сервисов:',
+                    'sudo ss -tlnp | grep -E ":(2049|139|445)"',
+                    '',
+                    '# Отключение NFS:',
+                    'sudo systemctl disable nfs-server',
+                    '',
+                    '# Отключение Samba:',
+                    'sudo systemctl disable smbd nmbd'
+                ],
+                'verification': 'Проверьте экспорты: showmount -e и testparm -s',
+                'regulatory_basis': 'Приказ ФСТЭК №21, п. 23'
+            }
+
 
 class PDReportGenerator:
     """Генератор отчетов по форме законодательства"""
@@ -1229,6 +2162,152 @@ _________________________________________________________________________
         
         return report
 
+    @staticmethod
+    def generate_remediation_guide(results, output_path=None):
+        """Генерация подробного руководства по устранению нарушений"""
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date_short = datetime.now().strftime("%d.%m.%Y")
+        hostname = ORG_DATA.get('pc_name', platform.node())
+        system = platform.system()
+        
+        violations = [(k, v) for k, v in results.items() if not v.get('passed', False)]
+        
+        # Создаем экземпляр SecurityCheckWorker для получения инструкций
+        worker = SecurityCheckWorker()
+        
+        report = f"""
+################################################################################
+#                                                                              #
+#         РУКОВОДСТВО ПО УСТРАНЕНИЮ НАРУШЕНИЙ                                  #
+#         требований к защите персональных данных                              #
+#                                                                              #
+################################################################################
+
+Организация: {ORG_DATA.get('name', '_________________________')}
+Дата формирования: {date_short}
+Информационная система: {hostname}
+Операционная система: {system}
+
+================================================================================
+                    ОБЩАЯ ИНФОРМАЦИЯ
+================================================================================
+
+Всего проверок: {len(results)}
+Выявлено нарушений: {len(violations)}
+Статус: {"ТРЕБУЕТСЯ УСТРАНЕНИЕ" if violations else "СООТВЕТСТВУЕТ"}
+
+================================================================================
+                    ИНСТРУКЦИИ ПО УСТРАНЕНИЮ НАРУШЕНИЙ
+================================================================================
+
+"""
+        
+        if violations:
+            for idx, (check_id, result) in enumerate(violations, 1):
+                # Получаем инструкции для данного нарушения
+                instructions = worker._get_remediation_instructions(check_id, system)
+                
+                report += f"""
+--------------------------------------------------------------------------------
+{idx}. {result.get('name', check_id).upper()}
+--------------------------------------------------------------------------------
+
+Нормативное требование: {result.get('requirement', 'Не указано')}
+
+Текущее состояние:
+{result.get('details', 'Не определено')}
+
+"""
+                
+                if instructions and instructions.get('title'):
+                    report += f"{instructions['title']}\n\n"
+                    
+                    steps = instructions.get('steps', [])
+                    if steps:
+                        report += "ПОШАГОВАЯ ИНСТРУКЦИЯ:\n\n"
+                        for step in steps:
+                            if step:  # Пропускаем пустые строки в выводе
+                                report += f"{step}\n"
+                        report += "\n"
+                    
+                    verification = instructions.get('verification', '')
+                    if verification:
+                        report += f"ПРОВЕРКА ВЫПОЛНЕНИЯ: {verification}\n\n"
+                    
+                    reg_basis = instructions.get('regulatory_basis', '')
+                    if reg_basis:
+                        report += f"НОРМАТИВНАЯ ОСНОВА: {reg_basis}\n"
+                else:
+                    # Если инструкции не найдены, используем рекомендации из результата
+                    recommendations = result.get('recommendations', [])
+                    if recommendations:
+                        report += "Рекомендации по устранению:\n\n"
+                        for rec_idx, rec in enumerate(recommendations, 1):
+                            report += f"{rec_idx}. {rec}\n"
+                        report += "\n"
+                
+                report += """
+Ответственный исполнитель: _________________________
+Срок исполнения: до "__" ________ 20__ г.
+Отметка о выполнении: _________________________
+
+"""
+        else:
+            report += """
+Нарушения не выявлены. Система защиты персональных данных 
+соответствует требованиям законодательства.
+
+"""
+        
+        report += f"""
+================================================================================
+                    ПРИЛОЖЕНИЯ
+================================================================================
+
+Приложение 1. Акт проверки соответствия от "{date_short}"
+Приложение 2. Отчет о техническом состоянии средств защиты информации
+Приложение 3. Перечень выявленных уязвимостей
+
+================================================================================
+                    КОНТРОЛЬНЫЙ ЛИСТ ВЫПОЛНЕНИЯ МЕРОПРИЯТИЙ
+================================================================================
+
+| № | Мероприятие                          | Срок     | Ответственный | Отметка |
+|---|--------------------------------------|----------|---------------|---------|
+"""
+        
+        task_num = 1
+        for check_id, result in violations:
+            instructions = worker._get_remediation_instructions(check_id, system)
+            title = instructions.get('title', result.get('name', check_id))[:40]
+            report += f"| {task_num} | {title:<40} | 30 дней  | _______________ | [ ]     |\n"
+            task_num += 1
+        
+        if task_num == 1:
+            report += "| - | Нарушения отсутствуют                   | -        | -             | -       |\n"
+        
+        report += f"""
+================================================================================
+Руководитель организации: _________________ / _________________________
+                         (подпись)            (Ф.И.О.)
+
+Ответственный за защиту ПДн: _________________ / _________________________
+                         (подпись)            (Ф.И.О.)
+
+М.П.
+
+Дата: "{date_short.split('.')[0]}" ________ 20__ г.
+
+################################################################################
+"""
+        
+        if output_path:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(report)
+        
+        return report
+
 
 class SecurityCheckGUI(QMainWindow):
     """Графический интерфейс программы"""
@@ -1627,6 +2706,14 @@ class SecurityCheckGUI(QMainWindow):
             try:
                 if report_type == 'official':
                     report = PDReportGenerator.generate_official_report(self.results)
+                elif report_type == 'detailed':
+                    report = PDReportGenerator.generate_detailed_report(self.results)
+                elif report_type == 'act':
+                    report = PDReportGenerator.generate_compliance_act(self.results)
+                elif report_type == 'violation':
+                    report = PDReportGenerator.generate_violation_notice(self.results)
+                elif report_type == 'remediation':
+                    report = PDReportGenerator.generate_remediation_guide(self.results)
                 else:
                     report = PDReportGenerator.generate_detailed_report(self.results)
                 
@@ -1701,16 +2788,31 @@ def console_mode_check():
                     print(f"     - {rec}")
             print()
         
+        # Генерация всех типов отчетов
         official_report = PDReportGenerator.generate_official_report(results)
         detailed_report = PDReportGenerator.generate_detailed_report(results)
+        compliance_act = PDReportGenerator.generate_compliance_act(results)
+        violation_notice = PDReportGenerator.generate_violation_notice(results)
+        remediation_guide = PDReportGenerator.generate_remediation_guide(results)
         
-        report_file = f"pd_check_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        with open(report_file, 'w', encoding='utf-8') as f:
-            f.write(official_report)
-            f.write("\n\n")
-            f.write(detailed_report)
+        # Сохранение всех отчетов
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        print(f"\nОтчет сохранен в файл: {report_file}")
+        reports = [
+            (f"pd_official_report_{timestamp}.txt", official_report),
+            (f"pd_detailed_report_{timestamp}.txt", detailed_report),
+            (f"pd_compliance_act_{timestamp}.txt", compliance_act),
+            (f"pd_violation_notice_{timestamp}.txt", violation_notice),
+            (f"pd_remediation_guide_{timestamp}.txt", remediation_guide)
+        ]
+        
+        print("\nСохранение отчетов:")
+        for filename, content in reports:
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(content)
+            print(f"  ✓ {filename}")
+        
+        print(f"\nВсе отчеты сохранены в текущей директории.")
     
     worker.progress_signal.connect(on_progress)
     worker.result_signal.connect(on_result)
